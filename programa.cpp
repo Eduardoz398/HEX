@@ -2,15 +2,21 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fstream>
-#define PC 8
-#define SP 9
-#define IR 10
+#define PC  8
+#define SP  9
+#define IR  10
+#define ADD 4
+#define SUB 5
+#define MUL 6
+#define AND 7
+#define OR  8
+#define XOR 9
 
-int operation = 0, Rd = 0, Rm = 0, Rn = 0, Im_MOV = 0, Im_JMP = 0, Last_Two_Bits = 0;
+int operation = 0, Rd = 0, Rm = 0, Rn = 0, Im_MOV = 0, Im_JMP = 0, MSB_JMP = 0, Last_Two_Bits = 0;
 
 /**
  * 
- * compiler program 
+ * Compiler program 
  * g++ -o programa programa.cpp -std=c++17 && ./programa
  */
    
@@ -27,12 +33,17 @@ void decode(unsigned int reg[]) {
     Im_MOV = reg[IR] & 0x00ff;
     Im_JMP = (reg[IR] & 0x07fc) >> 2;
     Last_Two_Bits = (reg[IR] & 0x0003);
+    MSB_JMP = (reg[IR] & 0x0400) >> 10;
 }
 
-int type(unsigned int reg[]) { 
+int get_type(unsigned int reg[]) { 
     unsigned int first_byte = reg[IR] >> 8;
     unsigned int bit = first_byte & 0x0008;  
     return bit == 0x0008 ? 1 : 0;
+}
+
+int complement_two(int number, int bits) {
+    return (1 << bits) - number;
 }
 
 std::string trim(const std::string str) {
@@ -76,27 +87,31 @@ int main() {
         }
     }
 
-    int dudu = 0;
-    
-    while (dudu++ <= 9) {
+    while (reg[IR] != 0xffff) {
         fetch(memory, reg);
         decode(reg);
 
+        int type = get_type(reg);
+
+        if (reg[IR] == 0x0000) {
+            printf("print data\n");
+        }
+
         if (operation == 1) {
-            if (type(reg) == 0) {
+            if (type == 0) {
                 reg[Rd] = reg[Rm];
                 printf("MOV R%d, R%d\n", Rd, Rm);
             } else {
                 reg[Rd] = Im_MOV;
                 printf("MOV R%d, #%d\n", Rd, Im_MOV);
             }     
-        } else if (operation == 0 && type(reg) == 0) { //Instrução de pilha ou de compação
+        } else if (operation == 0 && type == 0) { // Instrução de pilha ou de compação
             if (Last_Two_Bits == 1) {  
                 stack[reg[SP]] = reg[Rn];
-                reg[SP] -=2;
+                reg[SP] -= 2;
                 printf("PSH R%d\n", Rn);  
             } else if (Last_Two_Bits == 2) {
-                reg[SP] +=2;
+                reg[SP] += 2;
                 reg[Rd] = stack[reg[SP]];    
                 printf("POP R%d\n", Rd);
             } else {
@@ -104,38 +119,40 @@ int main() {
                 C = (reg[Rm] < reg[Rn])? 1:0;
                 printf("CMP R%d, R%d\n", Rm, Rn);
             }
-        } else if (operation == 4) { //Operações aritméticas, ADD
+        } else if (operation == ADD) { 
             reg[Rd] = reg[Rm] + reg[Rn];
             printf("ADD R%d, R%d, R%d\n", Rd, Rm, Rn);
-        } else if (operation == 5) { //SUB
+        } else if (operation == SUB) { 
             reg[Rd] = reg[Rm] - reg[Rn];
             printf("SUB R%d, R%d, R%d\n", Rd, Rm, Rn);
-        } else if (operation == 6) { //MUL
+        } else if (operation == MUL) { 
             reg[Rd] = reg[Rm] * reg[Rn];
-            printf("MUL R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == 7) { //AND
+            printf("MUL R%d, R%d, R%d\n", Rd, Rm, Rn);
+        } else if (operation == AND) { 
             reg[Rd] = reg[Rm] & reg[Rn];  
-            printf("AND R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == 8) { //OR
+            printf("AND R%d, R%d, R%d\n", Rd, Rm, Rn);
+        } else if (operation == OR) { 
             reg[Rd] = reg[Rm] || reg[Rn];
-             printf("ORR R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == 9) { //XOR
+             printf("ORR R%d, R%d, R%d\n", Rd, Rm, Rn);
+        } else if (operation == XOR) { 
             reg[Rd] = reg[Rm] ^ reg[Rn];
-            printf("XOR R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == 0 && type(reg) == 1) { // Instruções de devsio
+            printf("XOR R%d, R%d, R%d\n", Rd, Rm, Rn);
+        } else if (operation == 0 && type == 1) { // Instruções de devsio
             if (Last_Two_Bits == 0) {
-                reg[PC] += Im_JMP;
-                printf("JMP #%d", Im_JMP);
+                reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
+                printf("JMP #%d\n", reg[PC]);
             }    
         } else if (Last_Two_Bits == 1 && Z == 1 && C == 0) {
-            reg[PC] +=Im_JMP;
-            printf("JEQ #%d", Im_JMP);
+            reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
+            printf("JEQ #%d\n", reg[PC]);
         } else if (Last_Two_Bits == 2 && Z == 0 && C == 1) {
-            reg[PC] +=Im_JMP;
-            printf("JLT #%d", Im_JMP);
+            reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
+            printf("JLT #%d\n", Im_JMP);
         } else if (Last_Two_Bits == 3 && Z == 0 && C == 0) {
-            reg[PC] +=Im_JMP;
-            printf("JGT #%d", Im_JMP);
-        }    
-    }   
+            reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
+            printf("JGT #%d\n", Im_JMP);
+        }   
+    }
+
+    printf("\n");
 }
