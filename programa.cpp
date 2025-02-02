@@ -11,8 +11,9 @@
 #define AND 7
 #define OR  8
 #define XOR 9
-
-int operation = 0, Rd = 0, Rm = 0, Rn = 0, Im_MOV = 0, Im_JMP = 0, MSB_JMP = 0, Last_Two_Bits = 0;
+#define STR 2
+#define LDR 3
+int operation = 0, Rd = 0, Rm = 0, Rn = 0, Im_MOV = 0, Im_JMP = 0,Im_LDR = 0, MSB_JMP = 0, Last_Two_Bits = 0;
 
 /**
  * 
@@ -34,6 +35,7 @@ void decode(unsigned int reg[]) {
     Im_JMP = (reg[IR] & 0x07fc) >> 2;
     Last_Two_Bits = (reg[IR] & 0x0003);
     MSB_JMP = (reg[IR] & 0x0400) >> 10;
+
 }
 
 int get_type(unsigned int reg[]) { 
@@ -67,6 +69,7 @@ int main() {
 
     unsigned int memory[0xffff];          
     unsigned int stack[0xffff];
+    unsigned int bss[0xffff];
 
     std::ifstream file("ins.txt");
     std::string line; 
@@ -74,6 +77,7 @@ int main() {
     for (int i = 0; i <= 0xffff; i += 2) { // i marca o endereço.
         memory[i] = 0x0000;
         stack[i] = 0xaaaa;
+        bss[i] = 0x0000;
     }
 
     while (std::getline(file, line)) {
@@ -105,7 +109,7 @@ int main() {
                 reg[Rd] = Im_MOV;
                 printf("MOV R%d, #%d\n", Rd, Im_MOV);
             }     
-        } else if (operation == 0 && type == 0) { // Instrução de pilha ou de compação
+        } else if (operation == 0 && type == 0) { // Instrução de pilha ou de comparação
             if (Last_Two_Bits == 1) {  
                 stack[reg[SP]] = reg[Rn];
                 reg[SP] -= 2;
@@ -115,11 +119,22 @@ int main() {
                 reg[Rd] = stack[reg[SP]];    
                 printf("POP R%d\n", Rd);
             } else {
-                Z = (reg[Rm] == reg[Rn]) ? 1 : 0;  
-                C = (reg[Rm] < reg[Rn])? 1:0;
+                Z = reg[Rm] == reg[Rn] ? 1 : 0;  
+                C = reg[Rm] <  reg[Rn] ? 1 : 0;
                 printf("CMP R%d, R%d\n", Rm, Rn);
             }
-        } else if (operation == ADD) { 
+     
+
+        } else if (operation == LDR) {
+            reg[Rd] = bss[reg[Rm]]; 
+        
+        }else if (operation == STR && type == 0) {
+            bss[reg[Rm]] = reg[Rn];
+           
+        }else if (operation == STR && type == 1) {
+            bss[Rn] = Im_LDR; 
+        }
+        else if (operation == ADD) { 
             reg[Rd] = reg[Rm] + reg[Rn];
             printf("ADD R%d, R%d, R%d\n", Rd, Rm, Rn);
         } else if (operation == SUB) { 
