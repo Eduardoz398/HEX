@@ -6,10 +6,10 @@
 /**
  * 
  * compilar program
- * g++ -o myapp myapp.cpp -std=c++17 -I/opt/local/include -L/opt/local/lib -lwt -lwthttp -Wl,-rpath,/opt/local/lib
+ * g++ -o myapp.out myapp.cpp -std=c++17 -I/opt/local/include -L/opt/local/lib -lwt -lwthttp -Wl,-rpath,/opt/local/lib
  * 
  * compiler and run program
- * g++ -o myapp myapp.cpp -std=c++17 -I/opt/local/include -L/opt/local/lib -lwt -lwthttp -Wl,-rpath,/opt/local/lib && ./myapp --docroot . --http-address 0.0.0.0 --http-port 8080
+ * g++ -o myapp.out myapp.cpp -std=c++17 -I/opt/local/include -L/opt/local/lib -lwt -lwthttp -Wl,-rpath,/opt/local/lib && ./myapp.out --docroot . --http-address 0.0.0.0 --http-port 8080
  */
 
 class MyApp : public Wt::WApplication {

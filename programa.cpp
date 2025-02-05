@@ -19,7 +19,7 @@ int operation = 0, Rd = 0, Rm = 0, Rn = 0, Im_MOV = 0, Im_JMP = 0, Im_LDR = 0, M
 /**
  *
  * Compiler program
- * g++ -o programa programa.cpp -std=c++17 && ./programa
+ * g++ -o programa.out programa.cpp -std=c++17 && ./programa.out
  */
 
 void fetch(unsigned int memory[], unsigned int reg[]) {
