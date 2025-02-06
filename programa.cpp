@@ -6,6 +6,8 @@
 #define PC 8
 #define SP 9
 #define IR 10
+#define JP  0
+#define MOV 1
 #define STR 2
 #define LDR 3
 #define ADD 4
@@ -13,12 +15,18 @@
 #define MUL 6
 #define AND 7
 #define OR  8
-#define XOR 9
-
+#define NOT 9
+#define XOR 10
+#define SHR 11
+#define SHL 12
+#define ROR 13 // NAO FIZ
+#define ROL 14 // NAO FIZ
 
 int Z = 0, C = 0;
-int operation = 0, Rd = 0, Rm = 0, Rn = 0, Im_MOV = 0, Im_JMP = 0, Im_LDR = 0, MSB_JMP = 0, MSB_LDR, Last_Two_Bits = 0;
-int get_type(unsigned int reg[]) {
+int operation = 0, Rd = 0, Rm = 0, Rn = 0, MSB_JMP = 0, MSB_LDR, Last_Two_Bits = 0;
+int Im_S = 0, Im_JMP = 0, Im_LDR = 0, Im_MOV = 0;
+int get_type(unsigned int reg[])
+{
     unsigned int first_byte = reg[IR] >> 8;
     unsigned int bit = first_byte & 0x0008;
     return bit == 0x0008 ? 1 : 0;
@@ -30,12 +38,14 @@ int get_type(unsigned int reg[]) {
  * g++ -o programa.out programa.cpp -std=c++17 && ./programa.out
  */
 
-void fetch(unsigned int memory[], unsigned int reg[]) {
+void fetch(unsigned int memory[], unsigned int reg[])
+{
     reg[IR] = memory[reg[PC]];
     reg[PC] += 2;
 }
 
-void decode(unsigned int reg[]) {
+void decode(unsigned int reg[])
+{
     operation = (reg[IR] >> 8) >> 4;
     Rd = (reg[IR] >> 8) & 0x0007;
     Rm = (reg[IR] & 0x00e0) >> 5;
@@ -44,95 +54,161 @@ void decode(unsigned int reg[]) {
     Im_JMP = (reg[IR] & 0x07fc) >> 2;
     Last_Two_Bits = (reg[IR] & 0x0003);
     MSB_JMP = (reg[IR] & 0x0400) >> 10;
-    Im_LDR = (reg[IR] & 0x001f) + ((reg[IR] &0x0700) >> 3);
-    MSB_LDR =  (reg[IR] &0x0700) >> 10;
+    Im_LDR = (reg[IR] & 0x001f) + ((reg[IR] & 0x0700) >> 3);
+    MSB_LDR = (reg[IR] & 0x0700) >> 10;
+    Im_S = reg[IR] & 0x001f;
 }
 
-int complement_two(int number, int bits) {
+int complement_two(int number, int bits)
+{
     return (1 << bits) - number;
 }
 
-void execute(unsigned int reg[], unsigned int bss[], unsigned int stack[]) {
+void execute(unsigned int reg[], unsigned int bss[], unsigned int stack[])
+{
     int type = get_type(reg);
 
-        if (operation == 1) {
-            if (type == 0) {
-                reg[Rd] = reg[Rm];
-                printf("MOV R%d, R%d", Rd, Rm);
-            } else {
-                reg[Rd] = Im_MOV;
-                printf("MOV R%d, #%d", Rd, Im_MOV);
-            }
-        } else if (operation == 0 && type == 0) { // Instrução de pilha ou de comparação
-            if (Last_Two_Bits == 1){
+    if (reg[IR] == 0X0000)
+    {
+        printf("NOP");
+        return;
+    }
+    if (reg[IR] == 0xffff)
+    {
+        printf("HALT");
+        return;
+    }
+
+    switch (operation)
+    {
+    case MOV:
+        if (type == 0)
+        {
+            reg[Rd] = reg[Rm];
+            printf("MOV R%d, R%d", Rd, Rm);
+        }
+        else
+        {
+            reg[Rd] = Im_MOV;
+            printf("MOV R%d, #%d", Rd, Im_MOV);
+        }
+        break;
+    case JP:
+        if (type == 0)
+        {
+            if (Last_Two_Bits == 1)
+            {
                 stack[reg[SP]] = reg[Rn];
                 reg[SP] -= 2;
                 printf("PSH R%d", Rn);
-            } else if (Last_Two_Bits == 2){
+            }
+            else if (Last_Two_Bits == 2)
+            {
                 reg[SP] += 2;
                 reg[Rd] = stack[reg[SP]];
                 printf("POP R%d", Rd);
-            } else {
+            }
+            else
+            {
                 Z = reg[Rm] == reg[Rn] ? 1 : 0;
                 C = reg[Rm] < reg[Rn] ? 1 : 0;
                 printf("CMP R%d, R%d", Rm, Rn);
             }
-        } else if (operation == LDR) {
-            reg[Rd] = bss[reg[Rm]];
-            printf("LDR %d, [%d]", Rd, Rm);
-        } else if (operation == STR && type == 0) {
-            bss[reg[Rm]] = reg[Rn];
-              printf("STR %d, [%d]", Rm, Rn);
-        } else if (operation == STR && type == 1) {
-            bss[reg[Rn]] +=  MSB_LDR == 1 ? -complement_two(Im_LDR, 8) : Im_LDR;
-            printf("STR %d, #%d", Rm,  MSB_LDR == 1 ? -complement_two(Im_LDR, 8) : Im_LDR); 
-        } else if (operation == ADD) {
-            reg[Rd] = reg[Rm] + reg[Rn];
-            printf("ADD R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == SUB) {
-            reg[Rd] = reg[Rm] - reg[Rn];
-            printf("SUB R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == MUL) {
-            reg[Rd] = reg[Rm] * reg[Rn];
-            printf("MUL R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == AND) {
-            reg[Rd] = reg[Rm] & reg[Rn];
-            printf("AND R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == OR) {
-            reg[Rd] = reg[Rm] || reg[Rn];
-            printf("ORR R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == XOR) {
-            reg[Rd] = reg[Rm] ^ reg[Rn];
-            printf("XOR R%d, R%d, R%d", Rd, Rm, Rn);
-        } else if (operation == 0 && type == 1) { // Instruções de devsio
-            if (Last_Two_Bits == 0) {
+        }
+        else
+        {
+            if (Last_Two_Bits == 0)
+            {
                 reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
                 printf("JMP #%d", reg[PC]);
             }
-        } else if (Last_Two_Bits == 1 && Z == 1 && C == 0) {
-            reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
-            printf("JEQ #%d", reg[PC]);
-        } else if (Last_Two_Bits == 2 && Z == 0 && C == 1) {
-            reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
-            printf("JLT #%d", Im_JMP);
-        } else if (Last_Two_Bits == 3 && Z == 0 && C == 0) {
-            reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
-            printf("JGT #%d", Im_JMP);
+            else if (Last_Two_Bits == 1 && Z == 1 && C == 0)
+            {
+                reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
+                printf("JEQ #%d", reg[PC]);
+            }
+            else if (Last_Two_Bits == 2 && Z == 0 && C == 1)
+            {
+                reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
+                printf("JLT #%d", Im_JMP);
+            }
+            else if (Last_Two_Bits == 3 && Z == 0 && C == 0)
+            {
+                reg[PC] += MSB_JMP == 1 ? -complement_two(Im_JMP, 9) : Im_JMP;
+                printf("JGT #%d", Im_JMP);
+            }
         }
+        break;
+
+    case LDR:
+        reg[Rd] = bss[reg[Rm]];
+        printf("LDR %d, [%d]", Rd, Rm);
+        break;
+    case STR:
+        if (type == 0)
+        {
+            bss[reg[Rm]] = reg[Rn];
+            printf("STR %d, [%d]", Rm, Rn);
+        }
+        else
+        {
+            bss[reg[Rn]] += MSB_LDR == 1 ? -complement_two(Im_LDR, 8) : Im_LDR;
+            printf("STR %d, #%d", Rm, MSB_LDR == 1 ? -complement_two(Im_LDR, 8) : Im_LDR);
+        }
+        break;
+    case ADD:
+        reg[Rd] = reg[Rm] + reg[Rn];
+        printf("ADD R%d, R%d, R%d", Rd, Rm, Rn);
+        break;
+    case SUB:
+        reg[Rd] = reg[Rm] - reg[Rn];
+        printf("SUB R%d, R%d, R%d", Rd, Rm, Rn);
+        break;
+    case MUL:
+        reg[Rd] = reg[Rm] * reg[Rn];
+        printf("MUL R%d, R%d, R%d", Rd, Rm, Rn);
+        break;
+    case AND:
+        reg[Rd] = reg[Rm] & reg[Rn];
+        printf("AND R%d, R%d, R%d", Rd, Rm, Rn);
+        break;
+    case OR:
+        reg[Rd] = reg[Rm] || reg[Rn];
+        printf("ORR R%d, R%d, R%d", Rd, Rm, Rn);
+        break;
+    case XOR:
+        reg[Rd] = reg[Rm] ^ reg[Rn];
+        printf("XOR R%d, R%d, R%d", Rd, Rm, Rn);
+        break;
+    case NOT:
+        reg[Rd] = ~reg[Rm];
+        printf("NOT R%d, R%d", Rd, Rm);
+        break;
+    case SHR:
+        reg[Rd] = reg[Rm] >> Im_S;
+        printf("SHR R%d, R%d, #%d", Rd, Rm, Im_S);
+        break;
+    case SHL:
+        reg[Rd] = reg[Rm] << Im_S;
+        printf("SHR R%d, R%d, #%d", Rd, Rm, Im_S);
+        break;
+    }
 }
 
-
-std::string trim(const std::string str) {
+std::string trim(const std::string str)
+{
     size_t start = str.find_first_not_of(" \n\r\t");
     size_t end = str.find_last_not_of(" \n\r\t");
 
     return start == std::string::npos ? "" : str.substr(start, end - start + 1);
 }
 
-int main() {
+int main()
+{
     unsigned int reg[11];
 
-    for (int i = 0; i <= 7; i++) {
+    for (int i = 0; i <= 7; i++)
+    {
         reg[i] = 0x0000;
     }
 
@@ -147,16 +223,19 @@ int main() {
     std::ifstream file("ins.txt");
     std::string line;
 
-    for (int i = 0; i <= 0xffff; i += 2) { // i marca o endereço.
+    for (int i = 0; i <= 0xffff; i += 2)
+    { // i marca o endereço.
         memory[i] = 0x0000;
         stack[i] = 0xaaaa;
         bss[i] = 0x0000;
     }
 
-    while (std::getline(file, line)) {
+    while (std::getline(file, line))
+    {
         size_t pos = line.find(':');
 
-        if (pos != std::string::npos) {
+        if (pos != std::string::npos)
+        {
             std::string key = trim(line.substr(0, pos));
             std::string value = trim(line.substr(pos + 1));
 
@@ -164,31 +243,46 @@ int main() {
         }
     }
 
-    while (reg[IR] != 0xffff) {
+    while (true)
+    {
         std::string comando, token;
         std::getline(std::cin, comando);
         std::stringstream ss{comando};
         ss >> token;
-        
-        if(token == "z") {
+
+        if (token == "z")
+        {
             fetch(memory, reg);
             decode(reg);
             execute(reg, bss, stack);
             printf("\n");
         }
 
-        else if (token == "show") {
-            std::cout << "Registradores de uso geral:  "<< std::endl;
-            for(int i = 0; i < 8;i++) {
+        else if (token == "show" || reg[IR] == 0x0000)
+        {
+            int count = 0;
+            std::cout << "Registradores de uso geral:  " << std::endl;
+            for (int i = 0; i < 8; i++)
+            {
                 std::cout << "R" << i << ": " << reg[i] << std::endl;
             }
             std::cout << "\n";
-            std::cout << "PC: " << reg[PC] << " SP: " << reg[SP] << " IR: " << reg[IR]; 
+            std::cout << "PC: " << reg[PC] << " SP: " << reg[SP] << " IR: " << reg[IR];
             std::cout << "\n";
+            std::cout << "Flags: " << "Zero: "<<  Z << "Carry: " << C;
+            for(int i = 0; i < 0xffff;i +=2) {
+                if(bss[i] != 0)
+                    std::cout << bss[i] << " ";
+                if(count == 4) {
+                    std::cout << "\n";
+                    count = 0;
+                }    
+                count++;
+            }
         }
-        else if(token == "exit")  
+        else if (token == "exit" || reg[IR] == 0xffff)
             break;
-        else 
+        else
             std::cout << "comando nao definido";
     }
 }
