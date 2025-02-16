@@ -1,0 +1,26 @@
+// | INSTRUÇÃO      | OPERAÇÃO                     | TIPO   | 15 | 14 | 13 | 12 | 11 | 10  | 9   | 8   | 7   | 6   | 5   | 4   | 3   | 2   | 1   | 0   |
+// | NOP            | NOP                          | NOP    | 0  | 0  | 0  | 0  | 0  | 0   | 0   | 0   | 0   | 0   | 0   | 0   | 0   | 0   | 0   | 0   |
+// | HALT           | HALT                         | HALT   | 1  | 1  | 1  | 1  | 1  | 1   | 1   | 1   | 1   | 1   | 1   | 1   | 1   | 1   | 1   | 1   |
+// | MOV Rd, Rm     | Rd = Rm                      | MOV    | 0  | 0  | 0  | 1  | 0  | Rd2 | Rd1 | Rd0 | Rm1 | Rm0 | 0   | 0   | 0   | 0   | 0   | 0   |
+// | MOV Rd, #Im    | Rd = #Im                     | MOV    | 0  | 0  | 0  | 1  | 1  | Rd2 | Rd1 | Rd0 | Im7 | Im6 | Im5 | Im4 | Im3 | Im2 | Im1 | Im0 |
+// | STR [Rm], Rn   | [Rm] = Rn                    | STORE  | 0  | 0  | 1  | 0  | 0  |  -  |  -  |  -  | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  -  |  -  |
+// | STR [Rm], #Im  | [Rm] = #Im                   | STORE  | 0  | 0  | 1  | 0  | 1  | Im7 | Im6 | Im5 | Im4 | Im3 | Im2 | Im1 | Im0 | Rm2 | Rm1 | Rm0 |
+// | LDR Rd, [Rm]   | Rd = [Rm]                    | LOAD   | 0  | 0  | 1  | 1  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 |  -  |  -  |  -  |  -  |  -  |
+// | ADD Rd, Rm, Rn | Rd = Rm + Rn                 | ULA    | 0  | 1  | 0  | 0  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  -  |  -  |
+// | SUB Rd, Rm, Rn | Rd = Rm - Rn                 | ULA    | 0  | 1  | 0  | 1  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  -  |  -  |
+// | MUL Rd, Rm, Rn | Rd = Rm * Rn                 | ULA    | 0  | 1  | 1  | 0  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  -  |  -  |
+// | AND Rd, Rm, Rn | Rd = Rm & Rn                 | ULA    | 0  | 1  | 1  | 1  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  -  |  -  |
+// | OR  Rd, Rm, Rn | Rd = Rm | Rn                 | ULA    | 1  | 0  | 0  | 0  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  -  |  -  |
+// | NOT Rd, Rm     | Rd = ~Rm                     | ULA    | 1  | 0  | 0  | 1  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 |  -  |  -  |  -  |  -  |  -  |
+// | XOR Rd, Rm, Rn | Rd = Rm ^ Rn                 | ULA    | 1  | 0  | 1  | 0  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  -  |  -  |
+// | PSH Rn         | [SP] = Rn; SP--              | STACK  | 0  | 0  | 0  | 0  | 0  |  -  |  -  |  -  |  -  |  -  | -   | Rn2 | Rn1 | Rn0 |  0  |  1  |
+// | POP Rd         | SP++; Rd = [SP]              | STACK  | 0  | 0  | 0  | 0  | 1  | Rd2 | Rd1 | Rd0 |  -  |  -  | -   |  -  |  -  |  -  |  1  |  0  |
+// | CMP Rm, Rn     | Z=(Rm=Rn)?1:0; S=(Rm<Rn)?1:0 | ULA    | 0  | 0  | 0  | 1  | 0  |  -  |  -  |  -  | Rm2 | Rm1 | Rm0 | Rn2 | Rn1 | Rn0 |  1  |  1  |
+// | JMP #Im        | PC += Im                     | DESVIO | 0  | 0  | 0  | 0  | 1  | Im8 | Im7 | Im6 | Im5 | Im4 | Im3 | Im2 | Im1 | Im0 |  0  |  0  |
+// | JEQ #Im        | PC += Im se Z==1 e S==0      | DESVIO | 0  | 0  | 0  | 0  | 1  | Im8 | Im7 | Im6 | Im5 | Im4 | Im3 | Im2 | Im1 | Im0 |  0  |  1  |
+// | JLT #Im        | PC += Im se Z==0 e S==1      | DESVIO | 0  | 0  | 0  | 0  | 1  | Im8 | Im7 | Im6 | Im5 | Im4 | Im3 | Im2 | Im1 | Im0 |  1  |  0  |
+// | JGT #Im        | PC += Im se Z==0 e S==0      | DESVIO | 0  | 0  | 0  | 0  | 1  | Im8 | Im7 | Im6 | Im5 | Im4 | Im3 | Im2 | Im1 | Im0 |  1  |  1  |
+// | SHR Rd, Rm, #Im| Rd = Rm >> Im                | ULA    | 1  | 0  | 1  | 1  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Im4 | Im3 | Im2 | Im1 | Im0 |
+// | SHL Rd, Rm, #Im| Rd = Rm << Im                | ULA    | 1  | 1  | 0  | 0  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 | Im4 | Im3 | Im2 | Im1 | Im0 |
+// | ROR Rd, Rm, #Im| Rd = Rm >>1; Rd(MSB)= Rm(LSB)| ULA    | 1  | 1  | 0  | 1  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 |  -  |  -  |  -  |  -  |  -  |
+// | ROL Rd, Rm, #Im| Rd = Rm <<1; Rd(LSB)= Rm(MSB)| ULA    | 1  | 1  | 1  | 0  | -  | Rd2 | Rd1 | Rd0 | Rm2 | Rm1 | Rm0 |  -  |  -  |  -  |  -  |  -  |
