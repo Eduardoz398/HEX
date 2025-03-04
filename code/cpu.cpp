@@ -297,7 +297,7 @@ public:
                     reg[PC] += msb_jmp == 1 ? -complement_two(im_jmp, 9) : im_jmp;
                     printf("JEQ #%04x\n", reg[PC]);
                 }
-                else if (last_two_bits == 2 && !check_flag(FLAG_Z) && !check_flag(FLAG_S))
+                else if (last_two_bits == 2 && !check_flag(FLAG_Z) && check_flag(FLAG_S))
                 {
                     reg[PC] += msb_jmp == 1 ? -complement_two(im_jmp, 9) : im_jmp;
                     printf("JLT #%04x\n", im_jmp);
