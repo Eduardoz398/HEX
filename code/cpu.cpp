@@ -52,6 +52,8 @@ private:
     uint8_t bss[BSS_SIZE] = {0x00};
     uint16_t reg[REG_FULL_SIZE] = {0x00};
 
+    uint16_t lastIR = 0x0000;
+
     bool running = false;
 
 public:
@@ -83,13 +85,18 @@ public:
         uint8_t left = value & 0xFF;
         uint8_t right = (value >> 8) & 0xFF;
 
-        if (type == DATA_TYPE_MEMORY) {
+        if (type == DATA_TYPE_MEMORY)
+        {
             memory[address] = left;
             memory[address + 1] = right;
-        } else if (type == DATA_TYPE_STACK) {
+        }
+        else if (type == DATA_TYPE_STACK)
+        {
             stack[address] = left;
             stack[address + 1] = right;
-        } else if (type == DATA_TYPE_BSS) {
+        }
+        else if (type == DATA_TYPE_BSS)
+        {
             bss[address] = left;
             bss[address + 1] = right;
         }
@@ -97,11 +104,16 @@ public:
 
     uint16_t get_from_data(uint8_t type, uint16_t address)
     {
-        if (type == DATA_TYPE_MEMORY) {
+        if (type == DATA_TYPE_MEMORY)
+        {
             return (memory[address] | (memory[address + 1] << 8));
-        } else if (type == DATA_TYPE_STACK) {
+        }
+        else if (type == DATA_TYPE_STACK)
+        {
             return (stack[address] | (stack[address + 1] << 8));
-        } else {
+        }
+        else
+        {
             return (bss[address] | (bss[address + 1] << 8));
         }
     }
@@ -113,62 +125,67 @@ public:
 
     void fetch_instruction()
     {
+        lastIR = get_from_data(DATA_TYPE_MEMORY, reg[PC] - 2);
         reg[IR] = get_from_data(DATA_TYPE_MEMORY, reg[PC]);
         reg[PC] += 2;
     }
 
     void debug(bool only_flags = false)
     {
-        if (only_flags) {
+        if (only_flags)
+        {
             goto flags;
         }
 
-        printf("\n--- Estado da CPU ---\n");
+        printf("\n--- CPU STATUS ---\n");
 
         printf("PC: 0x%04x\n", reg[PC]);
         printf("SP: 0x%04x\n", reg[SP]);
-        printf("IR: 0x%04x\n", reg[IR]);
+        printf("IR: 0x%04x\n", lastIR);
 
-        flags:
+    flags:
         printf("FLAGS: 0x%04x\n", reg[FLAGS]);
         printf("CARRY: %d\n", check_flag(FLAG_C));
         printf("OVERFLOW: %d\n", check_flag(FLAG_V));
         printf("ZERO: %d\n", check_flag(FLAG_Z));
         printf("SIGNAL: %d\n", check_flag(FLAG_S));
-        
-        if (only_flags) return;
 
-        printf("\n==== Registradores ====\n");
+        if (only_flags)
+            return;
+
+        printf("\n==== Registrars ====\n");
 
         for (int i = 0; i < REG_SIZE; i++)
         {
-            printf("Registrador R%d: 0x%04x\n", i, reg[i]);
+            printf("Register R%d: 0x%04x\n", i, reg[i]);
         }
 
-        printf("\n==== Memória ====\n");
+        printf("\n==== Memory ====\n");
 
         for (int i = 0; i < MEMORY_SIZE; i += 2)
         {
-            if (i + 1 >= MEMORY_SIZE) break;
+            if (i + 1 >= MEMORY_SIZE)
+                break;
             uint16_t value = get_from_data(DATA_TYPE_MEMORY, i);
 
             if (value != 0x00)
             {
-                printf("Memória = %04x: 0x%04x\n", i, value);
+                printf("Memory = %04x: 0x%04x\n", i, value);
             }
         }
 
-        printf("\n==== Pilha ====\n");
+        printf("\n==== Stack ====\n");
 
         for (int i = 0; i < STACK_SIZE; i += 2)
         {
-            if (i + 1 >= STACK_SIZE) break;
+            if (i + 1 >= STACK_SIZE)
+                break;
 
             uint16_t value = get_from_data(DATA_TYPE_STACK, i);
 
             if (value != STACK_START && value != 0x00)
             {
-                printf("Pilha = %04x: 0x%04x\n", i, value);
+                printf("Stack = %04x: 0x%04x\n", i, value);
             }
         }
 
@@ -176,7 +193,8 @@ public:
 
         for (int i = 0; i < BSS_SIZE; i += 2)
         {
-            if (i + 1 >= BSS_SIZE) break;
+            if (i + 1 >= BSS_SIZE)
+                break;
 
             uint16_t value = get_from_data(DATA_TYPE_BSS, i);
 
@@ -187,31 +205,17 @@ public:
         }
 
         printf("==== END BSS ====\n");
-
     }
 
-    void update_flags(uint16_t result, uint16_t rm, uint16_t rn, bool is_add = false)
+    void update_flags(uint32_t result, uint16_t rm, uint16_t rn)
     {
-        // ativar flag zero, se resultado for 0
-        set_flag(FLAG_Z, result == 0x0000);
-        // ativar flag signal, se o bit mais significativo for 1
-        set_flag(FLAG_S, (result & 0x8000) != 0x0000);  
+        set_flag(FLAG_C, result > 0xFFFF);
 
-        if (is_add) {
-            // ativar flag carry, se o resultado for maior que 16 bits
-            set_flag(FLAG_C, (rm + rn) > 0xFFFF);
+        uint16_t most_bit_rm = (rm & 0x8000) >> 15;
+        uint16_t most_bit_rn = (rn & 0x8000) >> 15;
+        uint16_t most_bit_result = (result & 0x8000) >> 15;
 
-            set_flag(FLAG_V, ((rm & 0x8000) == (rn & 0x8000)) && ((result != 0x8000) != (rm & 0x8000)));
-        } else {
-            // ativar flag carry, quando não tem emprestimo
-            set_flag(FLAG_C, rm >= rn);
-            set_flag(FLAG_V, result > 0xFFFF);
-        }
-
-        if (!is_add && result > 0xFFFF) {
-            set_flag(FLAG_C, true);
-            set_flag(FLAG_V, result > 0xFFFF);
-        }
+        set_flag(FLAG_V, most_bit_rm == most_bit_rn && most_bit_result != most_bit_rm);
     }
 
     void decode_and_execute()
@@ -265,13 +269,13 @@ public:
                 if (last_two_bits == 1)
                 {
                     save_to_data(DATA_TYPE_STACK, reg[SP], reg[rn]);
-                    reg[SP] -= 2;               
+                    reg[SP] -= 2;
                     printf("PSH R%d\n", rn);
                 }
                 else if (last_two_bits == 2)
                 {
-                    reg[SP] += 2;          
-                    reg[rd] = get_from_data(DATA_TYPE_STACK, reg[SP]); 
+                    reg[SP] += 2;
+                    reg[rd] = get_from_data(DATA_TYPE_STACK, reg[SP]);
                     printf("POP R%d\n", rd);
                 }
                 else
@@ -326,65 +330,68 @@ public:
             break;
         case ADD:
             reg[rd] = reg[rm] + reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn], true);
+            update_flags(reg[rm] + reg[rn], reg[rm], reg[rn]);
             printf("ADD R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case SUB:
             reg[rd] = reg[rm] - reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn], false);
+            update_flags(reg[rm] - reg[rn], reg[rm], reg[rn]);
             printf("SUB R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case MUL:
             reg[rd] = reg[rm] * reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn], true);
+            update_flags(reg[rm] * reg[rn], reg[rm], reg[rn]);
             printf("MUL R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case AND:
             reg[rd] = reg[rm] & reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn], false);
+            update_flags(reg[rm] & reg[rn], reg[rm], reg[rn]);
             printf("AND R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case OR:
             reg[rd] = reg[rm] || reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn], false);
+            update_flags(reg[rm] || reg[rn], reg[rm], reg[rn]);
             printf("ORR R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case XOR:
             reg[rd] = reg[rm] ^ reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn], false);
+            update_flags(reg[rm] ^ reg[rn], reg[rm], reg[rn]);
             printf("XOR R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case NOT:
             reg[rd] = ~reg[rm];
-            update_flags(reg[rd], reg[rm], 0, false);
+            update_flags(~reg[rm], reg[rd], reg[rm]);
             printf("NOT R%d, R%d\n", rd, rm);
             break;
         case SHR:
             reg[rd] = reg[rm] >> im_s;
-            update_flags(reg[rd], reg[rm], im_s, false);
+            update_flags(reg[rm] >> im_s, reg[rm], im_s);
             printf("SHR R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case SHL:
             reg[rd] = reg[rm] << im_s;
-            update_flags(reg[rd], reg[rm], im_s, false);
+            update_flags(reg[rm] << im_s, reg[rm], im_s);
             printf("SHL R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case ROR:
             reg[rd] = (reg[rm] >> im_s) | (reg[rm] << (0x0010 - im_s));
-            update_flags(reg[rd], reg[rm], im_s, false);
+            update_flags((reg[rm] >> im_s) | (reg[rm] << (0x0010 - im_s)), reg[rm], im_s);
             printf("ROR R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case ROL:
             reg[rd] = (reg[rm] << im_s) | (reg[rm] >> (0x0010 - im_s));
-            update_flags(reg[rd], reg[rm], im_s, false);
+            update_flags((reg[rm] << im_s) | (reg[rm] >> (0x0010 - im_s)), reg[rm], im_s);
             printf("ROL R%d, R%d, #%04x\n", rd, rm, im_s);
+            break;
+        default:
+            printf("Unknown instruction: %04x\n", instruction);
             break;
         }
     }
 
     void execute()
     {
-        running = true; 
+        running = true;
 
         while (running)
         {
@@ -396,5 +403,6 @@ public:
     void run()
     {
         execute();
+        debug();
     }
 };

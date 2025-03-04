@@ -15,12 +15,13 @@ std::string trim(const std::string str)
     return start == std::string::npos ? "" : str.substr(start, end - start + 1);
 }
 
-void load_program(const std::string& filePath, CPU& cpu) {
+void load_program(const std::string &filePath, CPU &cpu)
+{
     std::ifstream file(filePath);
 
     if (!file)
     {
-        std::cerr << "Erro: Não foi possível abrir 'ins.txt'" << std::endl;
+        std::cerr << "Error: cannout open " << filePath << std::endl;
         return;
     }
 
@@ -43,15 +44,16 @@ void load_program(const std::string& filePath, CPU& cpu) {
     }
 }
 
-int main() {
+int main()
+{
     CPU cpu;
     Decode decode;
 
-    load_program("instruction-03.txt", cpu);
+    load_program("instruction-06.txt", cpu);
 
     // cout << color::yellow << decode.to_hex(1);
     cout << color::green;
-    cout << "Executando..." << endl;
+    cout << "Executing..." << endl;
     cpu.run();
     return 0;
 }
