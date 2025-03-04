@@ -49,9 +49,14 @@ int main()
     CPU cpu;
     Decode decode;
 
-    load_program("instruction-06.txt", cpu);
+    std::string programPath;
 
-    // cout << color::yellow << decode.to_hex(1);
+    std::cout << color::yellow << "Enter the program path: ";
+    std::cin >> programPath;
+
+    cout << color::green << "Program path: " << programPath << endl;
+    load_program(programPath, cpu);
+
     cout << color::green;
     cout << "Executing..." << endl;
     cpu.run();

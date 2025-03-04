@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <iomanip>
 #include <algorithm>
+#include <unordered_set>
 
 using namespace std;
 
@@ -53,10 +54,10 @@ private:
     uint16_t reg[REG_FULL_SIZE] = {0x00};
 
     uint16_t lastIR = 0x0000;
-
     bool running = false;
 
 public:
+    std::unordered_set<uint16_t> memoryAddress;
     CPU()
     {
         reg[PC] = 0x0000;
@@ -78,6 +79,8 @@ public:
     void save_to_memory(uint16_t address, uint16_t value)
     {
         save_to_data(DATA_TYPE_MEMORY, address, value);
+
+        memoryAddress.insert(address);
     }
 
     void save_to_data(uint8_t type, uint16_t address, uint16_t value)
@@ -220,6 +223,7 @@ public:
 
     void decode_and_execute()
     {
+
         uint16_t instruction = reg[IR];
 
         switch (instruction)
@@ -311,7 +315,7 @@ public:
             break;
 
         case LDR:
-            reg[rd] = get_from_data(DATA_TYPE_BSS, reg[rm]);
+            reg[rd] = bss[reg[rm]];
             printf("LDR R%d, [R%d]\n", rd, rm);
             break;
         case STR:
@@ -385,7 +389,14 @@ public:
             break;
         default:
             printf("Unknown instruction: %04x\n", instruction);
+            running = false;
             break;
+        }
+
+        if (memoryAddress.find(reg[PC]) == memoryAddress.end())
+        {
+            running = false;
+            return;
         }
     }
 
@@ -403,6 +414,5 @@ public:
     void run()
     {
         execute();
-        debug();
     }
 };
