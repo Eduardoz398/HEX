@@ -9,7 +9,7 @@
 using namespace std;
 
 #define MEMORY_SIZE 0xffff
-#define BSS_SIZE 0xffff
+#define DATA_MEMORY_SIZE 0xffff
 #define STACK_SIZE 0xffff
 #define STACK_START 0xAA
 #define REG_FULL_SIZE 0xC
@@ -22,7 +22,7 @@ using namespace std;
 
 #define DATA_TYPE_MEMORY 0x0000
 #define DATA_TYPE_STACK 0x0001
-#define DATA_TYPE_BSS 0x0002
+#define DATA_TYPE_DATA_MEMORY 0x0002
 
 #define FLAG_Z 0x01 // Zero
 #define FLAG_S 0x80 // Signal
@@ -50,10 +50,9 @@ class CPU
 private:
     uint8_t stack[STACK_SIZE] = {STACK_START};
     uint8_t memory[MEMORY_SIZE] = {0x00};
-    uint8_t bss[BSS_SIZE] = {0x00};
+    uint8_t data_memory[DATA_MEMORY_SIZE] = {0x00};
     uint16_t reg[REG_FULL_SIZE] = {0x00};
 
-    uint16_t lastIR = 0x0000;
     bool running = false;
 
 public:
@@ -98,10 +97,10 @@ public:
             stack[address] = left;
             stack[address + 1] = right;
         }
-        else if (type == DATA_TYPE_BSS)
+        else if (type == DATA_TYPE_DATA_MEMORY)
         {
-            bss[address] = left;
-            bss[address + 1] = right;
+            data_memory[address] = left;
+            data_memory[address + 1] = right;
         }
     }
 
@@ -117,7 +116,7 @@ public:
         }
         else
         {
-            return (bss[address] | (bss[address + 1] << 8));
+            return (data_memory[address] | (data_memory[address + 1] << 8));
         }
     }
 
@@ -128,7 +127,6 @@ public:
 
     void fetch_instruction()
     {
-        lastIR = get_from_data(DATA_TYPE_MEMORY, reg[PC] - 2);
         reg[IR] = get_from_data(DATA_TYPE_MEMORY, reg[PC]);
         reg[PC] += 2;
     }
@@ -144,7 +142,6 @@ public:
 
         printf("PC: 0x%04x\n", reg[PC]);
         printf("SP: 0x%04x\n", reg[SP]);
-        printf("IR: 0x%04x\n", lastIR);
 
     flags:
         printf("FLAGS: 0x%04x\n", reg[FLAGS]);
@@ -192,22 +189,22 @@ public:
             }
         }
 
-        printf("\n==== BSS ====\n");
+        printf("\n==== DATA MEMORY ====\n");
 
-        for (int i = 0; i < BSS_SIZE; i += 2)
+        for (int i = 0; i < DATA_MEMORY_SIZE; i += 2)
         {
-            if (i + 1 >= BSS_SIZE)
+            if (i + 1 >= DATA_MEMORY_SIZE)
                 break;
 
-            uint16_t value = get_from_data(DATA_TYPE_BSS, i);
+            uint16_t value = get_from_data(DATA_TYPE_DATA_MEMORY, i);
 
             if (value != 0x00)
             {
-                printf("BSS = %04x: 0x%04x\n", i, value);
+                printf("DATA MEMORY = %04x: 0x%04x\n", i, value);
             }
         }
 
-        printf("==== END BSS ====\n");
+        printf("==== END MEMORY DATA ====\n");
     }
 
     void update_flags(uint32_t result, uint16_t rm, uint16_t rn)
@@ -249,8 +246,7 @@ public:
         uint16_t im_jmp = (instruction & 0x07FC) >> 0x0002;
         uint16_t last_two_bits = (instruction & 0x0003);
         uint16_t msb_jmp = (instruction & 0x0400) >> 0x000A;
-        uint16_t im_ldr = (instruction & 0x001F) + ((instruction & 0x0700) >> 0x0003);
-        uint16_t msb_ldr = (instruction & 0x0700) >> 0x000A;
+        uint16_t im_str = (instruction & 0x001F) + ((instruction & 0x0700) >> 0x0003);
         uint16_t im_s = instruction & 0x001F;
 
         switch (operation)
@@ -315,21 +311,19 @@ public:
             break;
 
         case LDR:
-            reg[rd] = bss[reg[rm]];
+            reg[rd] = data_memory[reg[rm]];
             printf("LDR R%d, [R%d]\n", rd, rm);
             break;
         case STR:
             if (type == 0)
             {
-                save_to_data(DATA_TYPE_BSS, reg[rm], reg[rn]);
+                data_memory[reg[rm]] = reg[rn];
                 printf("STR [R%d], R%d\n", rm, rn);
             }
             else
             {
-                uint16_t value = get_from_data(DATA_TYPE_BSS, reg[rm]);
-                value += msb_ldr == 1 ? -complement_two(im_ldr, 8) : im_ldr;
-                save_to_data(DATA_TYPE_BSS, reg[rm], value);
-                printf("STR [R%d], #%04x\n", rm, msb_ldr == 1 ? -complement_two(im_ldr, 8) : im_ldr);
+                data_memory[reg[rm]] = im_str;
+                printf("STR [R%d], #%04x\n", rm, im_str);
             }
             break;
         case ADD:
@@ -414,5 +408,6 @@ public:
     void run()
     {
         execute();
+        debug();
     }
 };
