@@ -19,5 +19,6 @@
 
 ## Inserir instruções
 Apos executar digite o nome do arquivo que deseja abrir
+<img src="cpu_simulator.png" alt="Simulação de CPU" style="display: block;">
 
 Projeto desenvolvido para fins acadêmicos sob orientação do professor Cristiano Bacelar de Oliveira.
