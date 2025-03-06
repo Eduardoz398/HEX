@@ -153,9 +153,9 @@ public:
         if (only_flags)
             return;
 
-        printf("\n==== Registrars ====\n");
+        printf("\n==== General Purpose Registers ====\n");
 
-        for (int i = 0; i < REG_SIZE; i++)
+        for (int i = 0; i <= REG_SIZE; i++)
         {
             printf("Register R%d: 0x%04x\n", i, reg[i]);
         }
@@ -281,12 +281,16 @@ public:
                 else
                 {
                     set_flag(FLAG_Z, reg[rm] == reg[rn]);
-                    set_flag(FLAG_S, reg[rm] < reg[rn]);
+                    set_flag(FLAG_S, (int16_t)reg[rm] < (int16_t)reg[rn]);
                     printf("CMP R%d, R%d\n", rm, rn);
                 }
             }
             else
             {
+                if(im_jmp == 0x1fe)  //Caso em que o jmp pula para si mesmo e o programa deve ser encerrado
+                { 
+                    running = false;
+                }              
                 if (last_two_bits == 0)
                 {
                     reg[PC] += msb_jmp == 1 ? -complement_two(im_jmp, 9) : im_jmp;
