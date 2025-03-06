@@ -52,7 +52,6 @@ private:
     uint8_t memory[MEMORY_SIZE] = {0x00};
     uint8_t data_memory[DATA_MEMORY_SIZE] = {0x00};
     uint16_t reg[REG_FULL_SIZE] = {0x00};
-
     bool running = false;
 
 public:
@@ -207,9 +206,9 @@ public:
         printf("==== END MEMORY DATA ====\n");
     }
 
-    void update_flags(uint32_t result, uint16_t rm, uint16_t rn)
+    void update_flags_add(uint16_t result, uint16_t rm, uint16_t rn)
     {
-        set_flag(FLAG_C, result > 0xFFFF);
+        set_flag(FLAG_C, rm > 0xFFFF - rn);
 
         uint16_t most_bit_rm = (rm & 0x8000) >> 15;
         uint16_t most_bit_rn = (rn & 0x8000) >> 15;
@@ -218,6 +217,47 @@ public:
         set_flag(FLAG_V, most_bit_rm == most_bit_rn && most_bit_result != most_bit_rm);
     }
 
+    void update_flags_sub(uint16_t result, uint16_t rm, uint16_t rn)
+    {
+        uint16_t aux = complement_two(reg[rn], 16);
+        set_flag(FLAG_C, rm > 0xFFFF - aux);
+
+        uint16_t most_bit_rm = (rm & 0x8000) >> 15;
+        uint16_t most_bit_aux = (aux & 0x8000) >> 15;
+        uint16_t most_bit_result = (result & 0x8000) >> 15;
+
+        set_flag(FLAG_V, most_bit_rm == most_bit_aux && most_bit_result != most_bit_rm);
+    }
+
+    void update_flags_mul(uint16_t rm, uint16_t rn)
+    {
+        uint32_t result_c = (uint32_t)rm * (uint32_t)rn;
+        int32_t result_v = (int32_t)rm * (int32_t)rn;
+
+        if (rm == 0 || rn == 0)
+        {
+            set_flag(FLAG_C, false);
+            set_flag(FLAG_V, false);
+            return;
+        }
+
+        set_flag(FLAG_C, result_c > 0xFFFF);
+        if (rm < 0 && rn < 0 || rm > 0 && rn > 0)
+        {
+            set_flag(FLAG_V, result_v > INT16_MAX);
+        }
+        else if ((rm > 0 && rn < 0) || (rm < 0 && rn > 0))
+        {
+            set_flag(FLAG_V, result_v < INT16_MIN);
+        }
+    }
+
+    void update_flags_logic() 
+    {
+        set_flag(FLAG_C, false);
+        set_flag(FLAG_S, false);
+    }
+    
     void decode_and_execute()
     {
 
@@ -287,10 +327,10 @@ public:
             }
             else
             {
-                if(im_jmp == 0x1fe)  //Caso em que o jmp pula para si mesmo e o programa deve ser encerrado
-                { 
+                if (im_jmp == 0x1fe) // Caso em que o jmp pula para si mesmo e o programa deve ser encerrado
+                {
                     running = false;
-                }              
+                }
                 if (last_two_bits == 0)
                 {
                     reg[PC] += msb_jmp == 1 ? -complement_two(im_jmp, 9) : im_jmp;
@@ -332,57 +372,57 @@ public:
             break;
         case ADD:
             reg[rd] = reg[rm] + reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn]);
+            update_flags_add(reg[rd], reg[rm], reg[rn]);
             printf("ADD R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case SUB:
             reg[rd] = reg[rm] - reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn]);
+            update_flags_sub(reg[rd], reg[rm], reg[rn]);
             printf("SUB R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case MUL:
             reg[rd] = reg[rm] * reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn]);
+            update_flags_mul(reg[rm], reg[rn]);
             printf("MUL R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case AND:
             reg[rd] = reg[rm] & reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn]);
+            update_flags_logic();
             printf("AND R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case OR:
             reg[rd] = reg[rm] || reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn]);
+            update_flags_logic();
             printf("ORR R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case XOR:
             reg[rd] = reg[rm] ^ reg[rn];
-            update_flags(reg[rd], reg[rm], reg[rn]);
+            update_flags_logic();
             printf("XOR R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case NOT:
             reg[rd] = ~reg[rm];
-            update_flags(reg[rd], reg[rd], reg[rm]);
+            update_flags_logic();
             printf("NOT R%d, R%d\n", rd, rm);
             break;
         case SHR:
             reg[rd] = reg[rm] >> im_s;
-            update_flags(reg[rd], reg[rm], im_s);
+            update_flags_logic();
             printf("SHR R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case SHL:
             reg[rd] = reg[rm] << im_s;
-            update_flags(reg[rd], reg[rm], im_s);
+            update_flags_logic();
             printf("SHL R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case ROR:
             reg[rd] = (reg[rm] >> im_s) | (reg[rm] << (0x0010 - im_s));
-            update_flags(reg[rd], reg[rm], im_s);
+            update_flags_logic();
             printf("ROR R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case ROL:
             reg[rd] = (reg[rm] << im_s) | (reg[rm] >> (0x0010 - im_s));
-            update_flags(reg[rd], reg[rm], im_s);
+            update_flags_logic();
             printf("ROL R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         default:
