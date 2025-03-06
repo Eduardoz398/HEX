@@ -332,57 +332,57 @@ public:
             break;
         case ADD:
             reg[rd] = reg[rm] + reg[rn];
-            update_flags(reg[rm] + reg[rn], reg[rm], reg[rn]);
+            update_flags(reg[rd], reg[rm], reg[rn]);
             printf("ADD R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case SUB:
             reg[rd] = reg[rm] - reg[rn];
-            update_flags(reg[rm] - reg[rn], reg[rm], reg[rn]);
+            update_flags(reg[rd], reg[rm], reg[rn]);
             printf("SUB R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case MUL:
             reg[rd] = reg[rm] * reg[rn];
-            update_flags(reg[rm] * reg[rn], reg[rm], reg[rn]);
+            update_flags(reg[rd], reg[rm], reg[rn]);
             printf("MUL R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case AND:
             reg[rd] = reg[rm] & reg[rn];
-            update_flags(reg[rm] & reg[rn], reg[rm], reg[rn]);
+            update_flags(reg[rd], reg[rm], reg[rn]);
             printf("AND R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case OR:
             reg[rd] = reg[rm] || reg[rn];
-            update_flags(reg[rm] || reg[rn], reg[rm], reg[rn]);
+            update_flags(reg[rd], reg[rm], reg[rn]);
             printf("ORR R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case XOR:
             reg[rd] = reg[rm] ^ reg[rn];
-            update_flags(reg[rm] ^ reg[rn], reg[rm], reg[rn]);
+            update_flags(reg[rd], reg[rm], reg[rn]);
             printf("XOR R%d, R%d, R%d\n", rd, rm, rn);
             break;
         case NOT:
             reg[rd] = ~reg[rm];
-            update_flags(~reg[rm], reg[rd], reg[rm]);
+            update_flags(reg[rd], reg[rd], reg[rm]);
             printf("NOT R%d, R%d\n", rd, rm);
             break;
         case SHR:
             reg[rd] = reg[rm] >> im_s;
-            update_flags(reg[rm] >> im_s, reg[rm], im_s);
+            update_flags(reg[rd], reg[rm], im_s);
             printf("SHR R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case SHL:
             reg[rd] = reg[rm] << im_s;
-            update_flags(reg[rm] << im_s, reg[rm], im_s);
+            update_flags(reg[rd], reg[rm], im_s);
             printf("SHL R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case ROR:
             reg[rd] = (reg[rm] >> im_s) | (reg[rm] << (0x0010 - im_s));
-            update_flags((reg[rm] >> im_s) | (reg[rm] << (0x0010 - im_s)), reg[rm], im_s);
+            update_flags(reg[rd], reg[rm], im_s);
             printf("ROR R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         case ROL:
             reg[rd] = (reg[rm] << im_s) | (reg[rm] >> (0x0010 - im_s));
-            update_flags((reg[rm] << im_s) | (reg[rm] >> (0x0010 - im_s)), reg[rm], im_s);
+            update_flags(reg[rd], reg[rm], im_s);
             printf("ROL R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
         default:
