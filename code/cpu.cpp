@@ -257,7 +257,7 @@ public:
         set_flag(FLAG_C, false);
         set_flag(FLAG_S, false);
     }
-    
+
     void decode_and_execute()
     {
 
@@ -415,15 +415,15 @@ public:
             update_flags_logic();
             printf("SHL R%d, R%d, #%04x\n", rd, rm, im_s);
             break;
-        case ROR:
-            reg[rd] = (reg[rm] >> im_s) | (reg[rm] << (0x0010 - im_s));
+        case ROR:         
+            reg[rd] = (reg[rd] >> reg[rm]) | (reg[rd] << 16 - reg[rm]);
             update_flags_logic();
-            printf("ROR R%d, R%d, #%04x\n", rd, rm, im_s);
+            printf("ROR R%d, R%d", rd, rm);
             break;
         case ROL:
-            reg[rd] = (reg[rm] << im_s) | (reg[rm] >> (0x0010 - im_s));
+            reg[rd] = (reg[rd] << reg[rm]) | (reg[rd] >> (16 - reg[rm]));
             update_flags_logic();
-            printf("ROL R%d, R%d, #%04x\n", rd, rm, im_s);
+            printf("ROL R%d, R%d", rd, rm);
             break;
         default:
             printf("Unknown instruction: %04x\n", instruction);
